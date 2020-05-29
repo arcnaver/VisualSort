@@ -4,7 +4,7 @@
  *   USERINTERFACE HEADER
  *
  *    This will provide the function declarations for the 
- *    UserInterface class.
+ *    UserInterface class. It houses the visuals and algorithms.
  *
  *    The Visual Sort program will present several sorting
  *    algorithms, starting with the bubble sort, and display
@@ -22,8 +22,8 @@
  *    8, 16, or 32 bit console game.
  *
  *    Author: Adam Tipton
- *    Date: 5/23/2020
- *    Version: 0.2
+ *    Date: 5/29/2020
+ *    Version: 0.3
  *************************************************************
  *************************************************************/
 #define OLC_PGE_APPLICATION
@@ -108,8 +108,11 @@ private:
    //Variables
    int min = 0;
    int max = 0;
+   int i = 0;
+   int j = 0;
    float moveSpeed = 10.0f;
    bool finished = true;
+   bool iterateNextJ = true;
 
 
    //Getters
@@ -117,41 +120,24 @@ private:
    int getMin() { return min; }
    int getMax() { return max; }
    int getFinished() { return finished; }
+   int getI() { return i; }
+   int getJ() { return j; }
+   bool getIterateNextJ() { return iterateNextJ; }
 
    //Setters
    void setMin(int minNum) { this->min = minNum; }
    void setMax(int maxNum) { this->max = maxNum; }
    void setFinished(bool algoState) { this->finished = algoState; }
+   void setI(int index) { this->i = index; }
+   void setJ(int index) { this->j = index; }
+   void setIterateNextJ(bool value) { this->iterateNextJ = value; }
 
    //dynamic Arrays
    //bars* data = new bars[arr_size];
    bars data[arr_size];
    //Draw our HUD
-   void hud()
-   {
-      //Make the strings here
-      std::string welcome = "Welcome to the Visual Sort Program.";
-      std::string select = "Please select an algorithm to test.";
-      std::string msg = welcome + " " + select;
-      std::string bs = "Bubble Sort";
-
-      //Draw the title message
-      DrawString(5, 5, msg, olc::WHITE, 1);
-
-      //Create a horizontal line
-      FillRect(0, 35, ScreenWidth(), 2, olc::GREEN);
-
-      //Make a Bubble Sort button          
-      button(ScreenWidth() - 790, 20, 116, 11, "1: Bubble Sort", olc::WHITE, olc::BLUE);
-      button(ScreenWidth() - 670, 20, 108, 11, "2: Quick Sort", olc::WHITE, olc::BLUE);
-      //light grey
-      olc::Pixel lgrey(211, 211, 211);
-
-      //Draw a graph
-      graph();
-
-
-   }
+   void hud();
+   
 
    //Draws a graph with horizontal and verticle axis
    void graph();
@@ -159,17 +145,19 @@ private:
 
    //Button takes in x,y positions, width and height, a label, and color
    void button(int xPos, int yPos, int width, int height, std::string label, olc::Pixel labelColor, olc::Pixel fillColor);
-   
-
-   //This will move the bars around   ******TEST FUNCTION*******
-   bool mover(float fElapsedTime);
-   
+    
 
    //User Input
    void getUserInput(float fElapsedTime);
    
-
+   //Bubble Sort
+   void bubbleSort();
    
+   //Test sort
+   void testSort();
+
+   //BubbleMover
+   void bubbleMover(int a, int b);
 
    /********************************************************************************
     *Here are necessary functions that must be declared in order for the graphics
@@ -208,7 +196,9 @@ public:
 
       if (finished == false)
       {
-         mover(eTime);
+         testSort();
+         //bubbleSort();
+         //mover(0,1);
       }
 
 
@@ -368,7 +358,34 @@ inline void UserInterface::drawArray()
       {
          FillRect(data[i].xPos, data[i].yPos, data[i].width, data[i].height, data[i].color);
       }
+      
    }
+}
+
+inline void UserInterface::hud()
+{
+   //Make the strings here
+   std::string welcome = "Welcome to the Visual Sort Program.";
+   std::string select = "Please select an algorithm to test.";
+   std::string msg = welcome + " " + select;
+   std::string bs = "Bubble Sort";
+
+   //Draw the title message
+   DrawString(5, 5, msg, olc::WHITE, 1);
+
+   //Create a horizontal line
+   FillRect(0, 35, ScreenWidth(), 2, olc::GREEN);
+
+   //Make a Bubble Sort button          
+   button(ScreenWidth() - 790, 20, 116, 11, "1: Bubble Sort", olc::WHITE, olc::BLUE);
+   button(ScreenWidth() - 670, 20, 108, 11, "2: Quick Sort", olc::WHITE, olc::BLUE);
+   //light grey
+   olc::Pixel lgrey(211, 211, 211);
+
+   //Draw a graph
+   graph();
+
+
 }
 
 //Draws a graph for the bars to populate on
@@ -403,59 +420,219 @@ inline void UserInterface::button(int xPos, int yPos, int width, int height, std
    }
 }
 
-//Test function to see how to move bars around
-inline bool UserInterface::mover(float fElapsedTime)
-{
-   {
-      bool isDone = false;
-      if (data[10].height >= data[100].height)
-      {
-         if (data[10].xPos != data[100].origin)
-         {
-            data[10].color = olc::CYAN;
-            data[10].xPos += 1 * int(moveSpeed);
-         }
-         else
-         {
-            data[10].color = olc::GREEN;
-            isDone = true;
-            setFinished(true);
-         }
-         if (data[100].xPos != data[10].origin)
-         {
-            data[100].color = olc::MAGENTA;
-            data[100].xPos -= 1 * int(moveSpeed);
-         }
-         else
-         {
-            data[100].color = olc::GREEN;
-         }
-      }
 
-      //data[0].xPos += 1;
-      if (GetKey(olc::Key::RIGHT).bHeld) data[30].xPos += 1;
-      if (GetKey(olc::Key::LEFT).bHeld) data[30].xPos -= 1;
-
-      return isDone;
-   }
-}
 
 //Gets the user input, handy for selecting buttons.
 inline void UserInterface::getUserInput(float fElapsedTime)
 {
    {
-      // Get the mouse coordinates
+      // Tells us that key 1 has been pressed.
       if (GetKey(olc::Key::K1).bPressed)
       {
+         //We setFinished false so our loop can begin
+         //for our bubble sort.
          setFinished(false);
+
+         //Just a debug prompt
          std::cout << "PRESSED" << std::endl;
 
       }
 
-      /*while (!getFinished())
-      {
-         mover(fElapsedTime);
-      }*/
+      //TODO: Place other GetKey's here
+
+      
    }
 }
 
+////This is the bubble sort algorithm. 
+//inline void UserInterface::bubbleSort()
+//{  
+//   
+//   if (i < arr_size)
+//   {
+//      //if iterate next j is true, we need to increment j
+//      if (iterateNextJ == true)
+//      {
+//         std::cout << "In iterate. J is: " << j << std::endl;
+//         setJ(j += 1);
+//         setIterateNextJ(false);
+//      }
+//      if (j < arr_size - i - 1)
+//      {
+//         std::cout << "Now comparing J: " << j << std::endl;
+//         std::cout << "I: " << i << std::endl;
+//
+//         int a = data[j].height;
+//         int b = data[j + 1].height;
+//         if (a > b)
+//         {
+//            mover(j, j + 1);
+//            std::cout << "Just called mover" << std::endl;
+//         }
+//         else if (a <= b )
+//         {
+//            setJ(j += 1);
+//         }
+//      }
+//      else
+//      {
+//         setIterateNextJ(true);
+//      }
+//      if (j == arr_size - i - 1)
+//      {
+//         setI(i += 1);
+//         setJ(-1);
+//      }
+//      
+//   }
+//   else if (i == arr_size)
+//   {
+//      std::cout << "We're done" << std::endl;
+//      setFinished(true);
+//   }
+//
+//
+//}
+
+//This is the test bubble sort algorithm. 
+inline void UserInterface::testSort()
+{
+   /*this takes the place of our nested for loop which would normally be found in a 
+     bubble sort alogrithm. Because we are dealing with graphics it is necessary to
+     have a global i and j variable, otherwise the bars would sort before the canvas
+     had a chance to draw what happened. 
+   */
+   if (i < arr_size)
+   {
+      //Just a debug prompt
+      std::cout << "In I " << i << std::endl;
+      //This takes the place of our second for loop. It goes through the array 
+      //multiple times, shringink with each i iteration. 
+      if (j < arr_size - i - 1)
+      {
+         //Another debug prompt
+         std::cout << "In J " << j << std::endl;
+
+         /*This helps us make our comparisons. We could do it other ways but I
+           thought this was clearer than checking if(data[j].height > data[j + 1].height).
+           both ways are fine.
+         */
+         int a = data[j].height;
+         int b = data[j + 1].height;
+         
+         if (a > b)
+         {
+            //I want to see the comparison, so I change the color to red, or any other color than
+            //the original color.
+            //data[j].color = olc::RED;
+            data[j].color = olc::CYAN;
+
+            //We call our helper function to move bars around for us. It wants two index values.
+            //The current index, and the index we're comparing against. 
+            bubbleMover(j, j + 1);
+            
+         }
+         else
+         {
+            //I want to reset the color to the original color, which is green. This prevents sporadic
+            //bars colorization.
+            data[j].color = olc::GREEN;
+
+            //Because we have to manually iterate our global j variable, we do so here with the set function.
+            setJ(j += 1);
+            
+         }       
+      }
+      else
+      {
+         //Basically, if we've gone through the array of bars once already, we need to reset the j variable back to 0
+         setJ(0);
+         //We will also need to manually set the i variable now with its set function. This lets us go to the next i index and
+         //start all over again.
+         setI(i += 1);
+         
+      }
+
+      //After trying many ways of making the color work, this is what I came up with. This makes sure the end (finished) bars are
+      //RED so we can see the sort progression much easier. 
+      data[arr_size - i].color = olc::RED;
+      
+   }
+   else if (i == arr_size)
+   {
+      
+      //If we've gone through everything, its time to break the loop. To do so, we setFinished to true. 
+      setFinished(true);
+   }   
+}
+
+//Test function to see how to move bars around
+inline void UserInterface::bubbleMover(int a, int b)
+{        
+   //We need to compare the bars x positions and move them to the correct spot on the screen.   
+   if (data[a].xPos != data[b].origin && data[a].xPos < data[b].origin)
+   {  
+      /*This will animate the bar to the next bar position.
+        Seven is how many spaces in x each bar is from the other. For slower
+        movement, we could decrease this amount. Greater then 7 breaks the animation.
+      */
+      data[a].xPos += 7; 
+   }
+   else if (data[a].xPos > data[b].origin)
+   {
+      //Origin is a helper variable that aids our animation. 
+      //If we accidently overshoot, this brings us back.
+      data[a].xPos = data[b].origin;
+         
+         
+      //setFinished(true);
+   }
+
+   //This is the same as above, but in reverse.
+   if (data[b].xPos != data[a].origin && data[b].xPos > data[a].origin)
+   {                
+      data[b].xPos -= 7; //Less than 7 helps us see more animated frame, more than 7 breaks it. 
+   }
+   else if (data[b].xPos < data[a].origin)
+   {  
+      //Keeps us from overshooting in case of a higher speed than 7.
+      data[b].xPos = data[a].origin;
+      
+   }
+
+   /*House Keeping
+     This section resets the origin variables and readjusts the array to
+     a the sorted order so far. If we don't do this, our graphics are in order 
+     but our array isnt.
+   */
+   if (data[a].xPos == data[b].origin && data[b].xPos == data[a].origin)
+   {
+      //Just a debug statement. Tells us we're done with the current comparison.
+      std::cout << "DONE" << std::endl;
+      //a is on the right now
+      data[a].origin = data[a].xPos;
+         
+         
+      //b is on the left now
+      data[b].origin = data[b].xPos;
+         
+
+      /*Now update the array by swapping them around to their correct positions
+        Basically, this is just a typical swap function. We have to do it like
+        this because we are dealing with the Pixel Game Engine.
+      */
+      bars temp;
+      temp = data[a];
+      data[a] = data[b];
+      data[b] = temp;
+      //At this point we need to iterate our j.
+      setJ(j += 1);
+   }
+
+   /* These allow you to grab a bar and move it it around
+      for testing. In this case, the bar at index 30.
+   if (GetKey(olc::Key::RIGHT).bHeld) data[30].xPos += 1;
+   if (GetKey(olc::Key::LEFT).bHeld) data[30].xPos -= 1;
+   */
+   
+}
