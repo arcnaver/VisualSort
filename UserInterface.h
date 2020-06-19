@@ -22,23 +22,29 @@
  *    8, 16, or 32 bit console game.
  *
  *    Author: Adam Tipton
- *    Date: 5/29/2020
- *    Version: 0.3
+ *    Date: 6/19/2020
+ *    Version: 1.0 
  *************************************************************
  *************************************************************/
+//We need this for the graphics engine.
 #define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
-//#include "olcPixelGameEngine.h" /* PixelGameEngine */
+
+//Other includes.
 #include <stdlib.h>     /* srand, rand */
 #include <time.h>       /* time */
 #include <chrono>
 #include <windows.h>    /* for sleep */
+#include <stack>        /* for stack */
+
 
 /************************************************************************
  ************************************************************************
  * STRUCT: BARS
  * The bars are used to store values for sorting.
- * They will have a position and size.
+ * They will have a position, origin, and size. We will use the
+ * bars to also draw and animate movement. Basically, this is what
+ * is shown on the screen.
  *
  * To assign values:
  *    bars b1;
@@ -47,18 +53,24 @@
  ***********************************************************************/
 struct bars
 {
+   //Some simple variables. X and Y position, width, height.
    int xPos = 0;
    int yPos = 0;
    int width = 0;
    int height = 0;
-   //Just in case we need a color
+   //Default the color to RED.
    olc::Pixel color = olc::RED;
 
-   //Is it smallest or largest?
+   /*Is it smallest or largest?
+     This is purely a helper variable for the 
+     colorizer function.
+   */
    bool smallest = false;
    bool largest = false;
 
-   //Set an origin 
+   /*Set an origin. This will aid us in our animations and swapping
+     bars around.
+   */
    int origin;
 
 };
@@ -110,10 +122,19 @@ private:
    int max = 0;
    int i = 0;
    int j = 0;
+
+   int swaps = 0;
+
+   //int high = 0;
+   //int low  = 0;
+
    float moveSpeed = 10.0f;
    bool finished = true;
    bool iterateNextJ = true;
 
+   bool bubbleSortSelected = false;
+   //bool quickSortSelected = false;
+   bool selectSortSelected = false;
 
    //Getters
    int getScreenWid() { return ScreenWidth(); }
@@ -122,6 +143,15 @@ private:
    int getFinished() { return finished; }
    int getI() { return i; }
    int getJ() { return j; }
+   
+   int getSwaps() { return swaps; }
+
+   //int getHigh() { return high; }
+   //int getLow() { return low; }
+
+   bool getBubbleSortSelected() { return bubbleSortSelected; }
+   //bool getQuickSortSelected() { return quickSortSelected; }
+   bool getSelectSortSelected() { return selectSortSelected; }
    bool getIterateNextJ() { return iterateNextJ; }
 
    //Setters
@@ -131,6 +161,12 @@ private:
    void setI(int index) { this->i = index; }
    void setJ(int index) { this->j = index; }
    void setIterateNextJ(bool value) { this->iterateNextJ = value; }
+   void setBubbleSortSelected(bool value) { this->bubbleSortSelected = value; }
+   //void setQuickSortSelected(bool value) { this->quickSortSelected = value; }
+   void setSelectSortSelected(bool value) { this->selectSortSelected = value; }
+   //void setHigh(int value) { this->high = value; }
+   //void setLow(int value) { this->low = value; }
+   void setSwaps(int value) { this->swaps = value; }
 
    //dynamic Arrays
    //bars* data = new bars[arr_size];
@@ -146,25 +182,38 @@ private:
    //Button takes in x,y positions, width and height, a label, and color
    void button(int xPos, int yPos, int width, int height, std::string label, olc::Pixel labelColor, olc::Pixel fillColor);
     
+   //Resets the variables and bars after a sort has finished
+   void reset() { setI(0); setJ(0); populateArray(); setSizeFlags(); colorizor(); setFinished(true); setSwaps(0); }
 
    //User Input
    void getUserInput(float fElapsedTime);
-   
-   //Bubble Sort
+      
+   //Bubble sort
    void bubbleSort();
+
+   //Mover
+   void mover(int a, int b);
+
+   //Selection sort
+   void selectionSort();
+
+   //Print score
+   void printScore(int score);
    
-   //Test sort
-   void testSort();
-
-   //BubbleMover
-   void bubbleMover(int a, int b);
-
-   /********************************************************************************
-    *Here are necessary functions that must be declared in order for the graphics
-    *engine to work. We will keep them here and not place them over in the cpp file.
-    ********************************************************************************/
 public:
-   //runs once, anything we need to set up, do it here
+/********************************************************************************
+ ********************************************************************************
+ *Here are necessary functions that must be declared in order for the graphics
+ *engine to work. We will keep them here and not place them over in the cpp file.
+ ********************************************************************************
+ ********************************************************************************/
+
+/***************************************************
+***   ON USER CREATE                               *
+***   A mandatory part of the OLC Pixel Game Engine*
+***   It is initiated only once. It is were we do  *
+***   our primary initializations.                 *
+***************************************************/
    bool OnUserCreate() override
    {
       //Initial population of the array
@@ -173,10 +222,18 @@ public:
       setSizeFlags();
       //Color the smallest and largest bar
       colorizor();
+      
+      
 
       return true;
    }
 
+/***************************************************
+***   ON USER UPDATE                               *
+***   A mandatory part of the OLC Pixel Game Engine*
+***   It is constantly updating. It is the         *
+***   workhorse of the program.                    *
+***************************************************/
    //Runs in a loop, constantly updated. It really is the workhorse of the program
    bool OnUserUpdate(float fElapsedTime) override
    {
@@ -189,16 +246,18 @@ public:
       //now draw the array to the screen
       drawArray();
 
-
+      printScore(swaps);
 
       //mover(eTime);
       getUserInput(eTime);
 
-      if (finished == false)
-      {
-         testSort();
-         //bubbleSort();
-         //mover(0,1);
+      if (finished == false && bubbleSortSelected)
+      {         
+         bubbleSort();         
+      }      
+      else if (finished == false && selectSortSelected)
+      {         
+         selectionSort();
       }
 
 
@@ -208,7 +267,12 @@ public:
 
 };
 
-
+/***************************************************
+***   POPULATE ARRAY                               *
+***   Populate the array with our bars struct.     *
+***   It takes in data[] and initializes the       *
+***   variables.
+***************************************************/
 //Populate the array with our struct. It grabs data[] and initializes the variables.
 void UserInterface::populateArray()
 {
@@ -300,7 +364,12 @@ void UserInterface::populateArray()
    }
 }
 
-//Sets the smallest/largest flags in the struct. It takes in two ints (smallest and largest)
+/***************************************************
+***   SET SIZE FLAGS                               *
+***   Sets the smallest/largest flags in the       *
+***   bars struct. It takes in two ints            *
+***   smalles and largest.                         *
+***************************************************/
 inline void UserInterface::setSizeFlags()
 {
    {
@@ -328,6 +397,11 @@ inline void UserInterface::setSizeFlags()
    }
 }
 
+/***************************************************
+***   COLORIZOR                                    *
+***   Loops through the array and colors the least *
+***   and greatest value bars blue and red.        *
+***************************************************/
 //This will loop through and color the least and greatest value bar
 inline void UserInterface::colorizor()
 {
@@ -349,7 +423,10 @@ inline void UserInterface::colorizor()
    }
 }
 
-//This will draw the array to the screen for us
+/***************************************************
+***   DRAW ARRAY                                   *
+***   This will draw the array to the screen.      *
+***************************************************/
 inline void UserInterface::drawArray()
 {
    {
@@ -362,23 +439,33 @@ inline void UserInterface::drawArray()
    }
 }
 
+/***************************************************
+***   HUD                                          *
+***   Creates the HUD for the Visual Sort Program. *
+***************************************************/
 inline void UserInterface::hud()
 {
    //Make the strings here
    std::string welcome = "Welcome to the Visual Sort Program.";
    std::string select = "Please select an algorithm to test.";
    std::string msg = welcome + " " + select;
-   std::string bs = "Bubble Sort";
+   std::string swaps = "Swaps: ";
+   
 
    //Draw the title message
    DrawString(5, 5, msg, olc::WHITE, 1);
+   
+   //Draw iteration score
+   DrawString(ScreenWidth() - 780, ScreenHeight() - 15, swaps, olc::WHITE, 1);
+   
 
    //Create a horizontal line
    FillRect(0, 35, ScreenWidth(), 2, olc::GREEN);
 
    //Make a Bubble Sort button          
    button(ScreenWidth() - 790, 20, 116, 11, "1: Bubble Sort", olc::WHITE, olc::BLUE);
-   button(ScreenWidth() - 670, 20, 108, 11, "2: Quick Sort", olc::WHITE, olc::BLUE);
+   button(ScreenWidth() - 670, 20, 116, 11, "2: Select Sort", olc::WHITE, olc::BLUE);
+   button(ScreenWidth() - 550, 20, 70, 11,  "R: RESET", olc::WHITE, olc::RED);
    //light grey
    olc::Pixel lgrey(211, 211, 211);
 
@@ -388,6 +475,10 @@ inline void UserInterface::hud()
 
 }
 
+/***************************************************
+***   GRAPH                                        *
+***   Draws a graph for the bars to populate on    *
+***************************************************/
 //Draws a graph for the bars to populate on
 inline void UserInterface::graph()
 {
@@ -406,6 +497,11 @@ inline void UserInterface::graph()
    }
 }
 
+/***************************************************
+***   BUTTON                                       *
+***   Takes in x,y positions, width and height     *
+***   a lable, and color for making a button.      *
+***************************************************/
 //Button takes in x,y positions, width and height, a label, and color
 inline void UserInterface::button(int xPos, int yPos, int width, int height, std::string label, olc::Pixel labelColor, olc::Pixel fillColor)
 {
@@ -420,82 +516,72 @@ inline void UserInterface::button(int xPos, int yPos, int width, int height, std
    }
 }
 
-
-
-//Gets the user input, handy for selecting buttons.
+/***************************************************
+***   GET USER INPUT                               *
+***   Gets the users input. Handy for selecting    *
+***   buttons.                                     *
+***************************************************/
 inline void UserInterface::getUserInput(float fElapsedTime)
 {
    {
-      // Tells us that key 1 has been pressed.
+      // Tells us that key 1 has been pressed for BubbleSort.
       if (GetKey(olc::Key::K1).bPressed)
       {
+         reset();
+         //Let the system know we selected BubbleSort
+         setBubbleSortSelected(true);
+         //Ensure no other sorts are active
+         //setQuickSortSelected(false);
          //We setFinished false so our loop can begin
          //for our bubble sort.
          setFinished(false);
 
          //Just a debug prompt
-         std::cout << "PRESSED" << std::endl;
+         std::cout << "K1 PRESSED: BubbleSort" << std::endl;
 
       }
 
-      //TODO: Place other GetKey's here
 
-      
+      // Tells us that key 3 has been pressed for SelectionSort.
+      if (GetKey(olc::Key::K2).bPressed)
+      {
+         reset();
+         //Reset the variables
+         setI(0);
+         setJ(1);
+         //Let the system know we selected BubbleSort
+         setSelectSortSelected(true);
+         //Ensure no other sorts are active
+         setBubbleSortSelected(false);
+         
+         //We setFinished false so our loop can begin
+         //for our bubble sort.
+         setFinished(false);
+
+         //Just a debug prompt
+         std::cout << "K3 PRESSED: SelectionSort" << std::endl;
+
+      }
+
+      // This will reset the playing field
+      if (GetKey(olc::Key::R).bPressed)
+      {
+         //The reset function will clear the variables and reset the bar array.
+         reset();
+
+         //Just a debug prompt
+         std::cout << "Reset PRESSED: Now Resetting." << std::endl;
+      }
    }
 }
 
-////This is the bubble sort algorithm. 
-//inline void UserInterface::bubbleSort()
-//{  
-//   
-//   if (i < arr_size)
-//   {
-//      //if iterate next j is true, we need to increment j
-//      if (iterateNextJ == true)
-//      {
-//         std::cout << "In iterate. J is: " << j << std::endl;
-//         setJ(j += 1);
-//         setIterateNextJ(false);
-//      }
-//      if (j < arr_size - i - 1)
-//      {
-//         std::cout << "Now comparing J: " << j << std::endl;
-//         std::cout << "I: " << i << std::endl;
-//
-//         int a = data[j].height;
-//         int b = data[j + 1].height;
-//         if (a > b)
-//         {
-//            mover(j, j + 1);
-//            std::cout << "Just called mover" << std::endl;
-//         }
-//         else if (a <= b )
-//         {
-//            setJ(j += 1);
-//         }
-//      }
-//      else
-//      {
-//         setIterateNextJ(true);
-//      }
-//      if (j == arr_size - i - 1)
-//      {
-//         setI(i += 1);
-//         setJ(-1);
-//      }
-//      
-//   }
-//   else if (i == arr_size)
-//   {
-//      std::cout << "We're done" << std::endl;
-//      setFinished(true);
-//   }
-//
-//
-//}
 
-//This is the test bubble sort algorithm. 
-inline void UserInterface::testSort()
+/***************************************************
+***   BUBBLE SORT                                  *
+***   This function impliments our bubble sort     *
+***   algorithm.                                   *
+***************************************************/
+inline void UserInterface::bubbleSort()
 {
    /*this takes the place of our nested for loop which would normally be found in a 
      bubble sort alogrithm. Because we are dealing with graphics it is necessary to
@@ -529,7 +615,7 @@ inline void UserInterface::testSort()
 
             //We call our helper function to move bars around for us. It wants two index values.
             //The current index, and the index we're comparing against. 
-            bubbleMover(j, j + 1);
+            mover(j, j + 1);
             
          }
          else
@@ -566,8 +652,12 @@ inline void UserInterface::testSort()
    }   
 }
 
-//Test function to see how to move bars around
-inline void UserInterface::bubbleMover(int a, int b)
+/***************************************************
+***   MOVER                                        *
+***   This helper function aids the bubble sort    *
+***   function in moving the bars around.          *
+***************************************************/
+inline void UserInterface::mover(int a, int b)
 {        
    //We need to compare the bars x positions and move them to the correct spot on the screen.   
    if (data[a].xPos != data[b].origin && data[a].xPos < data[b].origin)
@@ -580,22 +670,22 @@ inline void UserInterface::bubbleMover(int a, int b)
    }
    else if (data[a].xPos > data[b].origin)
    {
-      //Origin is a helper variable that aids our animation. 
-      //If we accidently overshoot, this brings us back.
+      /*Origin is a helper variable that aids our animation. 
+      If we accidently overshoot, this brings us back.*/
       data[a].xPos = data[b].origin;
          
          
       //setFinished(true);
    }
 
-   //This is the same as above, but in reverse.
+   /*This is the same as above, but in reverse.*/
    if (data[b].xPos != data[a].origin && data[b].xPos > data[a].origin)
    {                
       data[b].xPos -= 7; //Less than 7 helps us see more animated frame, more than 7 breaks it. 
    }
    else if (data[b].xPos < data[a].origin)
    {  
-      //Keeps us from overshooting in case of a higher speed than 7.
+      /*Keeps us from overshooting in case of a higher speed than 7.*/
       data[b].xPos = data[a].origin;
       
    }
@@ -607,13 +697,13 @@ inline void UserInterface::bubbleMover(int a, int b)
    */
    if (data[a].xPos == data[b].origin && data[b].xPos == data[a].origin)
    {
-      //Just a debug statement. Tells us we're done with the current comparison.
+      /*Just a debug statement. Tells us we're done with the current comparison.*/
       std::cout << "DONE" << std::endl;
-      //a is on the right now
+      /*a is on the right now*/
       data[a].origin = data[a].xPos;
          
          
-      //b is on the left now
+      /*b is on the left now*/
       data[b].origin = data[b].xPos;
          
 
@@ -625,9 +715,12 @@ inline void UserInterface::bubbleMover(int a, int b)
       temp = data[a];
       data[a] = data[b];
       data[b] = temp;
-      //At this point we need to iterate our j.
+      /*At this point we need to iterate our j.*/
       setJ(j += 1);
    }
+
+   //Update the swap score in the HUD
+   setSwaps(swaps += 1);
 
    /* These allow you to grab a bar and move it it around
       for testing. In this case, the bar at index 30.
@@ -635,4 +728,64 @@ inline void UserInterface::bubbleMover(int a, int b)
    if (GetKey(olc::Key::LEFT).bHeld) data[30].xPos -= 1;
    */
    
+}
+
+
+/**********************************************************
+***   Select SORT                                         *
+***   This function impliments our Select Sort            *
+***   algorithm. It takes a size value previously found.  *
+***                                                       *
+***   https://www.geeksforgeeks.org/selection-sort/       *
+**********************************************************/
+void UserInterface::selectionSort()
+{
+   int data_size = sizeof(data) / sizeof(data[0]);
+   
+   //Minimum Index
+   int minIndex;
+   //Here we are moving the boundaries of the subarray. However,
+   //insead of a for loop, we are forced to use an if statement
+   //to track i similarly to what we did in bubble sort.
+   if (i < data_size - 1)
+   {
+      //Now we need to find the smallest element in the unsorted array.
+      minIndex = i;
+      for (int k = i + 1; k < data_size; k++)
+      {         
+         if (data[k].height < data[minIndex].height)
+         {
+            minIndex = k;
+         }
+         
+      }     
+      //Now we need to swap the value found in the minimum element with the first.
+      //selectMover(minIndex, i);
+      mover(minIndex, i);
+   }
+   //So we can more easily see progress, change the bar color to red when it's done.
+   data[i].color = olc::RED;
+   setI(i += 1);
+   
+   //If we've reached the end we need to finish
+   if (i == data_size)
+   {
+      std::cout << "Finished" << std::endl;
+      setFinished(true);
+   }
+
+}
+
+/**********************************************************
+***   Print Score                                         *
+***   This function allows us to print our swap score to  *
+***   the HUD.                                            *
+**********************************************************/
+void UserInterface::printScore(int score)
+{
+   //Create the string
+   std::string swaps = std::to_string(score);
+   
+   //Draw the label for the score
+   DrawString(ScreenWidth() - 730, ScreenHeight() - 15, swaps, olc::WHITE, 1);
 }
