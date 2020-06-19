@@ -576,11 +576,13 @@ inline void UserInterface::getUserInput(float fElapsedTime)
 }
 
 
-/***************************************************
-***   BUBBLE SORT                                  *
-***   This function impliments our bubble sort     *
-***   algorithm.                                   *
-***************************************************/
+/************************************************************
+***   BUBBLE SORT                                           *
+***   This function impliments our bubble sort              *
+***   algorithm.                                            *
+***   https://editor.p5js.org/codingtrain/sketches/3HVrL9m36*
+***   https://www.geeksforgeeks.org/bubble-sort/            *
+************************************************************/
 inline void UserInterface::bubbleSort()
 {
    /*this takes the place of our nested for loop which would normally be found in a 
@@ -731,13 +733,13 @@ inline void UserInterface::mover(int a, int b)
 }
 
 
-/**********************************************************
-***   Select SORT                                         *
-***   This function impliments our Select Sort            *
-***   algorithm. It takes a size value previously found.  *
-***                                                       *
-***   https://www.geeksforgeeks.org/selection-sort/       *
-**********************************************************/
+/*************************************************************
+***   Select SORT                                            *
+***   This function impliments our Select Sort               *
+***   algorithm. It takes a size value previously found.     *
+***   https://editor.p5js.org/codingtrain/sketches/vic6Qzo-j *
+***   https://www.geeksforgeeks.org/selection-sort/          *
+*************************************************************/
 void UserInterface::selectionSort()
 {
    int data_size = sizeof(data) / sizeof(data[0]);
