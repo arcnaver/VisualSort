@@ -34,3 +34,7 @@ OLC's Pixel Game Engine is used as the Visual Element
 Bubble Sort:
 https://editor.p5js.org/codingtrain/sketches/3HVrL9m36
 https://www.geeksforgeeks.org/bubble-sort/
+
+Select Sort:
+https://editor.p5js.org/codingtrain/sketches/vic6Qzo-j 
+https://www.geeksforgeeks.org/selection-sort/ 
