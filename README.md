@@ -4,7 +4,7 @@ A visual representation of sorting algorithms.
 The olcPixelGameEnginer is used as the graphics driver for this program.
 https://github.com/OneLoneCoder
 
-Visual Sort will offer a visual representation of several sorting algorithms, starging with bubble sort. The viewer will be presented with a graph and set of unsorted bars, which will then be sorted into their correct positions. 
+Visual Sort will offer a visual representation of several sorting algorithms, starting with bubble sort. The viewer will be presented with a graph and set of unsorted bars, which will then be sorted into their correct positions. 
 
 Bubble Sort has been implemented.
 Selection Sort has been implemented.
